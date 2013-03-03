@@ -1,0 +1,4 @@
+name				: partial.js
+secret				: secret-key-for-web
+httpCompress		: true
+httpCompress		: true

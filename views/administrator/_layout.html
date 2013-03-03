@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Administrator 1.01</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=10" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="width=1024, user-scalable=yes" />
+    <meta name="robots" content="all,follow" />
+    <link rel="stylesheet" href="@{routeStatic('/administrator/p.css')}" />
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script type="text/javascript" src="@{routeStatic('/administrator/helper.js')}"></script>
+    <script type="text/javascript" src="@{routeStatic('/administrator/p.js')}"></script>
+    <link rel="shortcut icon" href="@{routeStatic('/administrator/favicon.png')}" type="image/png" />
+    <link rel="icon" href="@{routeStatic('/administrator/favicon.png')}" type="image/png" />
+<head>
+<body>
+    <div class="menu-user">
+        <a href="/administrator/logoff/" class="logoff"><span class="icon-off"></span></a>
+        <div>@{session.id}</div>
+        <a href="http://www.partialjs.com" target="_blank" class="partiallogo"><img src="@{routeStatic('/administrator/partialjs.png')}" width="24" height="24" alt="partial.js / web application framework for node.js" border="0" /></a>
+    </div>
+    <br />
+    <br />
+    @{body}
+    <div class="cl">&nbsp;</div>
+<body>
+<html>

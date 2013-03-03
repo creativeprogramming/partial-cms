@@ -1,0 +1,8 @@
+name				: partial.js
+secret				: secret-key-for-web
+httpCompress		: false
+httpCompress		: false
+
+administrator-users			: petersirka@gmail.com;, gajdosik@wsd-europe.com;
+administrator-mail-smtp		: mail.upcmail.sk
+administrator-mail-sender	: sirka@wsd-europe.com

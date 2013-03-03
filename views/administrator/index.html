@@ -1,0 +1,28 @@
+<div class="content">
+	<div class="h60">
+		<div class="fl ml10 mt15">
+			<button class="button w130" name="new">Add content</button>
+		</div>
+		<div class="fr mr10 mt20">
+			<select class="w200" id="category">
+				<option value="0">&nbsp;</option>
+				<optgroup label="Category">
+					@{options(model, '', 'Name', 'Id')}
+				</optgroup>
+				<optgroup label="Other">
+					<option value="-1">Files</option>
+				</optgroup>
+			</select>			
+		</div>
+	</div>
+	<div class="grid-container" id="grid-container">
+		<table class="grid" border="0" cellpadding="0" cellspacing="0" id="grid">
+			<colgroup>
+				<col />
+				<col style="width:200px" />
+				<col style="width:60px" />
+				<col style="width:30px" />
+			</colgroup>
+		</table>
+	</div>
+</div>

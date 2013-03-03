@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CMS 1.01</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=10" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="width=1024, user-scalable=yes" />
+    <meta name="robots" content="all,follow" />
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script type="text/javascript" src="@{routeJS('helper.js')}"></script>
+    <link rel="stylesheet" href="@{routeStatic('/administrator/p.css')}" />
+    <link rel="shortcut icon" href="@{routeStatic('/administrator/favicon.png')}" type="image/png" />
+    <link rel="icon" href="@{routeStatic('/administrator/favicon.png')}" type="image/png" />
+<head>
+<body>
+
+    <div id="message"></div>
+
+    <div class="content content-login">
+        <div class="content-title">Markdown customizable CMS 1.01</div>
+        <div class="content-padding gray npb">
+            <form action="#xhr" method="post" id="f">
+                <div>E-mail address:</div>
+                <div class="h20 mt5">
+                    <input type="text" name="Email" id="Email" value="@" maxlength="200" />
+                </div>
+            </form>
+            <br />
+            <div class="fs11 mt10 mb10 h30 hidden" id="ok">
+                <div class="fl">
+                    <span class="icon icon-ok-sign green" style="font-size:24px"></span>
+                </div>
+                <div class="fl ml10">
+                    To your e-mail address was sent a link to login<br />to the administration interface.
+                </div>
+            </div>
+
+            <div class="message-alert mb10 fs11 hidden" id="error">
+                E-mail address does not exist in the user database.
+            </div>
+
+            <div class="mt5 h35">
+                <button class="button w120" name="submit">Login</button>
+            </div>
+            <div class="cl">&nbsp;</div>
+        </div>
+    </div>
+    <br />
+    <div class="about"><img src="@{routeStatic('/administrator/partialjs.png')}" width="16" height="16" alt="partial.js" border="0" /> Powered by <a href="http://nodejs.org" class="gray">node.js</a> &amp; <a href="http://partialjs.com" class="gray">partial.js</a></div>
+
+    <script type="text/javascript">
+        var setup = null;
+
+        $(document).ready(function() {
+
+            setup = {};
+
+            $('input').bind('keypress', function(e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    submitLogin();
+                }
+            }).prop({ disabled: false });
+
+            $('button[name="submit"]').bind('click', function(e) {
+                submitLogin();
+            });
+
+            helper.onValidation = function(name, value) {
+                switch (name) {
+                    case "Email":
+                        return helper.isEmail(value);
+                };
+            };
+        });
+
+        function submitLogin() {
+            var el = $('#f');
+
+            if (!helper.validation(el, ['Email']))
+                return;
+
+            $.post('/administrator/authorization/', el.serialize(), function(d) {
+
+                var elOK = $('#ok').hide();
+                var elNO = $('#error').hide();
+
+                if (d.r) {
+                    elOK.slideDown(300);
+                    el.trigger('reset');
+                }
+                else {
+                    elNO.slideDown(300);                    
+                }
+
+            });
+        }
+    </script>
+
+<body>
+<html>

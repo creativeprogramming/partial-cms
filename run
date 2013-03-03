@@ -1,0 +1,14 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+PORT="$@"
+
+if [ "$PORT" = "" ]; then
+    PORT="8000"
+fi
+
+open "http://127.0.0.1:$PORT"
+
+eval "cd $DIR"
+eval "supervisor -- index.js $@"

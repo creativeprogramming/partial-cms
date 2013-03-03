@@ -1,0 +1,192 @@
+@{model.body}
+<form action="#xhr" name="f" id="f" method="post">
+
+	<div class="content">
+		<div class="p15 bg-smoke radius-top">
+			<button class="close" name="cancel">&times;</button>
+			<div id="title" itemprop="NAMELESS"></div>
+		</div>
+		<div class="p15">
+			<textarea class="form-content" name="Body" id="Body" required="required">@{model.Body}</textarea>
+		</div>
+	</div>
+	<br />
+	<div class="content">
+		<div class="p20 npb	">
+			<div class="fs11 silver b mb15">CONTENT OPTIONS</div>
+			
+			<div class="fl w500">
+				<div class="form">
+					<div class="w90">Name <span class="required">*</span></div>
+					<span>:</span>
+					<div><input type="text" class="w350" name="Name" id="Name" value="@{model.Name}" maxlength="80" required="required" /></div>
+				</div>
+				<div class="form">
+					<div class="w90">Link</div>
+					<span>:</span>
+					<div><input type="text" class="w350" name="Link" id="Link" value="@{model.Link}"@{isDisabled(model.IdStatus === 2)} maxlength="150" /></div>
+				</div>
+				<div class="form">
+					<div class="w90">Keywords</div>
+					<span>:</span>
+					<div><input type="text" class="w350" name="Keywords" value="@{model.Keywords}" maxlength="80" /></div>
+				</div>
+				<div class="form">
+					<div class="w90">Description</div>
+					<span>:</span>
+					<div><textarea class="w350 h50" name="Description" maxlength="300">@{model.Description}</textarea></div>
+				</div>
+				<div class="cl"></div>
+			</div>
+
+			<div class="fl">
+				<div class="form">
+					<div class="w80">Category <span class="required">*</span></div>
+					<span>:</span>
+					<div>
+						<select class="w310" name="IdCategory" id="IdCategory"@{isDisabled(model.IdStatus === 2)}>
+							<option value="0">&nbsp;</option>
+							@{options(repository.category, model.IdCategory, 'Name', 'Id')}
+						</select>
+					</div>
+				</div>
+				<div class="form">
+					<div class="w80">Priority </div>
+					<span>:</span>
+					<div>
+						<select class="w80" name="Priority" id="Priority" itemprop="@{model.Priority}"@{isDisabled(model.IdStatus === 2)}>
+							<option value="0">&nbsp;</option>
+						</select>
+					</div>
+				</div>
+				<br /><br />
+				<div class="form mt3">
+					<div class="w80">Note</div>
+					<span>:</span>
+					<div><input type="text" class="w300" name="Note" id="Note" value="@{model.Note}" maxlength="200" /></div>
+				</div>
+				<div class="form">
+					<div class="w80">Key</div>
+					<span>:</span>
+					<div><input type="text" class="w300" name="Key" id="Key" value="@{model.Key}"@{isDisabled(model.IdStatus === 2)} maxlength="50" /></div>
+				</div>
+			</div>
+
+			<div class="cl">&nbsp;</div>
+			<div class="bt">&nbsp;</div>
+			<div class="fl w90">&nbsp;</div>
+			<div class="fl ml5">
+				<div class="message-alert hidden w800 mb20" id="error">
+					<button class="close" name="hide">&times;</button>
+				</div>
+				<div>
+					<button class="button w150" name="submit">Save content</button>
+					<button class="button-cancel w100 ml10" name="cancel">Cancel</button>
+				</div>
+			</div>
+			<div class="cl mb5">&nbsp;</div>
+		</div>
+	</div>
+</form>
+
+<script type="text/javascript">
+
+	function onReady() {
+		$('button').bind('click', function(e) {
+			e.preventDefault();
+			switch (this.name) {
+				case 'hide':
+					$(this).parent().hide();
+					break;
+				case 'cancel':
+					window.location.href = '../';
+					break;
+
+				case 'submit':
+
+					if (helper.validation('#f', ['IdCategory', 'Name', 'Body'])) {
+						busy.post('content', $('#f').serialize(), function(d) {							
+							if (helper.eTe('#error', d))
+								return;
+							window.location.href = '../';
+						}, helper.url());
+					}
+
+					break;
+			}
+		});		
+
+		$('#Name').bind('keyup', function() {
+			var el = $('#title');			
+			el.text(this.value.length === 0 ? el.attr('itemprop') : this.value);
+		}).trigger('keyup');
+
+		$('#f').find('input,textarea,select').bind('blur', function() {
+			helper.onValidation.call(this, this.name, this.value);
+		});
+
+		$('textarea[name="Body"]').focus().bind('dragenter dragover dragexit drop', function (e) {
+		    switch (e.type) {
+		        case 'dragenter':
+		            dragEnter(e);
+		            break;
+		        case 'dragover':
+		            dragOver(e);
+		            break;
+		        case 'dragexit':
+		            dragExit(e);
+		            break;
+		        case 'drop':
+		            drop(e);
+		            break;
+		    }
+		});
+
+		var el = $('#Priority');
+		var value = parseInt(helper.getProp(el));
+		for (var i = 1; i < 101; i++) {
+			helper.optionCreate(el, i, i, function(o) {
+				o.selected = value === i;
+			});
+		}
+	}
+
+	function dragEnter(evt) {
+	    evt.stopPropagation();
+	    evt.preventDefault();
+	}
+	  
+	function dragExit(evt) {
+	    evt.stopPropagation();
+	    evt.preventDefault();
+	}
+	  
+	function dragOver(evt) {
+	    evt.stopPropagation();
+	    evt.preventDefault();
+	}
+	  
+	function drop(evt) {
+	    evt.stopPropagation();
+	    evt.preventDefault();
+		
+		var files = evt.originalEvent.dataTransfer.files;
+		var count = files.length;
+		
+		if (count === 0)
+			return;
+	   
+		var upload = new Upload();
+
+		upload.on('complete', function(value) {
+			var el = $('#Body');
+			JSON.parse(value).forEach(function(file) {
+				textareaInsert(el, ' ' + file);
+			});
+		});
+
+		upload.submit('/administrator/upload/', files);
+	}
+
+
+</script>
