@@ -15,7 +15,8 @@ exports.install = function(framework) {
 
 	app.config['administrator-users'].split(',').forEach(function(user) {
 		var data = user.split(';');
-		users[data[0]] = data[1] || '';
+		var name = data.shift();
+		users[name] = data;
 	});
 	
 	app.route('/administrator/', viewIndex);
@@ -86,10 +87,8 @@ exports.install = function(framework) {
 			return;
 		}
 
-
 		var menu = '';
 		mainmenu.forEach(function(o) {
-
 			if (o.roles.length > 0) {
 				var next = true;
 				for (var i = 0; i < o.roles.length; i++) {
@@ -101,12 +100,10 @@ exports.install = function(framework) {
 				if (!next)
 					return;
 			}
-
 			menu += o.html;
 		});
 
 		controller.repository.mainmenu = menu;
-
 		controller.req.session = controller.session = administrator;
 		controller.layout('/administrator/_layout');
 	});
@@ -121,7 +118,7 @@ exports.install = function(framework) {
 		Key: 'text(50)',
 		Name: 'text(50)',
 		Count: 'integer'
-	});
+	}, 'Id', true);
 
 	builders.schema('content', {
 		Id: 'integer',
@@ -133,7 +130,6 @@ exports.install = function(framework) {
 		Description: 'text(300)',
 		Body: 'text',
 		Keywords: 'text(80)',
-		Custom: 'text',
 		Note: 'text(200)',
 		Priority: 'integer',
 		DateCreated: 'datetime'
@@ -141,7 +137,7 @@ exports.install = function(framework) {
 
 	builders.schema('file', {
 		Id: 'integer',
-		Name: 'text(80)',
+		Name: 'text(130)',
 		Size: 'integer',
 		ContentType: 'text(50)',
 		Dimension: 'text(12)',
@@ -152,30 +148,17 @@ exports.install = function(framework) {
 	var db = app.database('cms');
 	
 	db.schemaCreate('status', function(b) {
-		db.schemaCreate('category', function(b) {
+		db.schemaCreate('content', function(b) {
 			
 			if (!b)
 				return;
 
-			db.schemaCreate('content', function(b) {
-				
-				if (!b)
-					return;
-
-				db.insert('category', { Name: 'Menu', Key: 'menu', Count: 0 });
-				db.insert('category', { Name: 'Article', Key: 'article', Count: 0 });
-				db.insert('status', { Id: 1, Name: 'Active' });
-				db.insert('status', { Id: 2, Name: 'Frozen' });
-				db.insert('status', { Id: 3, Name: 'Offline' });
-
-				db.schemaCreate('file');
-			});
+			db.insert('status', { Id: 1, Name: 'Active' });
+			db.insert('status', { Id: 2, Name: 'Frozen' });
+			db.insert('status', { Id: 3, Name: 'Disabled' });
+			db.schemaCreate('file');
 		});	
 	});
-};
-
-exports.menu = function(name, url, icon, id, roles) {
-	mainmenu.push({ html: '<li><a href="{0}" id="{3}"><span class="icon icon-{1}"></span>{2}</a></li>'.format(url, icon, name, 'menu_' + (id || mainmenu.length)), roles: roles || [] });
 };
 
 exports.onRequest = function(cookieValue) {
@@ -224,278 +207,6 @@ exports.onRequest = function(cookieValue) {
 	self.req.session = self.session = administrator;
 };
 
-function viewLogin(self) {
-	self.layout('');
-	self.view('/administrator/login');
-};
-
-function viewIndex() {
-	var self = this;
-
-	if (self.session === null)
-		return viewLogin(self);
-
-	//self.layout('/administrator/_layout');
-	self.redirect('/administrator/contents/');
-}
-
-function authorization() {
-	
-	var self = this;
-
-	if (!(self.post.Email || '').isEmail())
-		return self.json({ r: false });
-
-	var user = users[self.post.Email];
-
-	if (typeof(user) === 'undefined')
-		return self.json({ r: false });
-
-	var obj = {
-		ip: self.req.ip,
-		id: self.post.Email,
-		expire: new Date().add('day', 1).getTime()
-	};
-
-	var hash = self.app.encode(obj, 'administrator');
-	var params = { url: self.req.hostname('/administrator/authorization/?hash=' + hash),
-			       now: new Date().format('dd.MM.yyyy HH:mm:ss') };
-
-	mail.send(self.config['administrator-mail-smtp'], self.config['administrator-mail-sender'], obj.id, null, 'Administrator', self.resource('cms', 'mail').params(params));
-	return self.json({ r: true });
-};
-
-function authorizationHash() {
-
-	var self = this;
-	var hash = self.get.hash;
-	var administrator = self.app.decode(hash, 'administrator', true);
-
-	if (typeof(administrator) === 'object') {
-		if (administrator.ip === self.req.ip || administrator.expire > new Date().getTime()) {
-			self.res.cookie(cookieName, hash, new Date().add('day', 1));
-			exports.onRequest.call(self, hash);
-		}
-	}
-
-	self.redirect('/administrator/');
-};
-
-function logoff() {
-	var self = this;
-	self.res.cookie(cookieName, '', new Date().add('day', -1));
-	self.redirect('/administrator/');
-};
-
-function viewContents() {
-	var self = this;
-	var db = self.database('cms');
-	db.all('category', builders.asc('Name'), function(err, rows) {
-		self.view('/administrator/index', rows);
-	});
-};
-
-function jsonContents() {
-	var self = this;
-	var db = self.database('cms');
-	var query = new builders.QueryBuilder();
-
-	if (self.post.category > 0)
-		query.addValue('IdCategory', '=', self.post.category, true);
-
-	if (self.post.category > -1) {
-		db.reader('SELECT Id, IdStatus, Name, Note, DateCreated FROM content' + query.toString(true) + ' ORDER BY DateCreated DESC', function(err, rows) {
-			self.json(rows);
-		});
-		return;
-	}
-
-	db.reader('SELECT Id, Name, Size, Dimension, DateCreated FROM file ORDER BY DateCreated DESC', function(err, rows) {
-		self.json(rows);
-	});
-};
-
-function viewContentsForm(id) {
-	var self = this;
-	var db = self.database('cms');
-	
-	var model = {		
-		IdStatus: 0,
-		IdCategory: 0,
-		Priority: 0,
-		Name: '',
-		Description: '',
-		Link: '',
-		Body: '',
-		Custom: '',
-		Note: ''
-	};
-
-	id = id.parseInt();
-
-	self.wait(function() {
-		db.all('category', builders.asc('Name'), function(err, rows) {
-
-			self.repository.category = rows;
-
-			if (id === 0)
-				self.skip();
-			else
-				self.next();
-
-		});
-	});
-
-	self.wait(function() {
-		db.findPK('content', id, function(err, row) {
-			if (row === null)
-				self.view404();
-			else {
-				model = row;
-				self.view('/administrator/form', model);
-			}
-		});
-	});
-
-	self.viewAsync('/administrator/form', model);
-};
-
-function jsonContentsForm(id) {
-	var self = this;
-
-	var db = self.database('cms');
-	var cms = self.module('cms');
-
-	id = id.parseInt();
-
-	if (self.get.deleted === '1') {
-
-		if (self.post.isFile === 'true') {
-	
-			db.execute('DELETE FROM file WHERE Id=' + id, function(err, data) {
-				self.json({ r: data.changes > 0 });
-			});
-
-			return;
-		}
-
-		cms.contentDelete({ Id: id }, function(isDeleted) {
-			self.json({ r: isDeleted });
-		});
-
-		return;
-	}
-
-	var error = self.validation(self.post, ['Name', 'Body'], 'form-', 'cms');
-	if (error.hasError())
-		return self.json(error);
-
-	var model = utils.extend({ Id: id, IdStatus: 1 }, self.post);
-
-	self.wait(function() {
-
-		if (id === 0) {
-			self.next();
-			return;
-		}
-
-		db.findPK('content', id, function(err, row) {
-			model = utils.extend(row, model);
-
-			if (row.IdStatus === 2) {
-				model.IdCategory = row.IdCategory;
-				model.Priority = row.Priority;
-				model.Key = row.Key;
-				model.Link = row.Link;
-			}
-
-			self.next();
-		});
-	});
-
-	self.wait(function() {
-
-		var cb = function(err, data) {
-			self.next();
-		};
-		
-		if (id === 0)
-			cms.contentInsert(model, cb);
-		else
-			cms.contentUpdate(model, cb);
-
-	});
-
-	self.jsonAsync({ r: true });
-}
-
-function uploadFile() {
-
-	var self = this;
-	var output = [];
-	var db = self.database('cms');
-
-	self.files.forEach(function(file) {
-
-		var fn = function(file) {
-			self.wait(function() {
-
-				var model = { Name: file.fileName,
-							  Size: file.fileSize,
-							  DateCreated: new Date(),
-							  ContentType: file.contentType,
-							  Dimension: ''
-							};
-
-				// read binary data to memory
-				model.Data = file.readSync();				
-				var extension = path.extname(file.fileName);
-
-				if (file.isImage()) {
-
-					file.picture().identify(function(err, data) {
-						var cb = function(err, row) {
-
-							if (err)
-								return self.next();
-
-							output.push('![' + path.basename(file.fileName, extension) + '](/upload/' + row.Id + extension + (data !== null ? '#' + data.width + 'x' + data.height : '') + ')');
-							self.next();
-						};
-
-						if (data !== null) {
-							model.Dimension = data.width + 'x' + data.height;
-							db.insert('file', model, cb);
-							return;
-						}
-
-						db.insert('file', model, cb);
-					});
-
-					return;
-				}
-
-				var cb = function(err, row) {
-
-					if (err)
-						return self.next();
-
-					output.push('[' + path.basename(file.fileName, extension) + ']: /upload/' + row.Id + path.extname(file.fileName));
-					self.next();
-				};
-
-				db.insert('file', model, cb);
-			});
-		}
-
-		fn(file);
-	});
-
-	self.complete(function() {
-		self.json(output);
-	});
-}
-
 exports.onRender = function(item) {
 	return item;
 };
@@ -520,11 +231,20 @@ exports.contentUpdate = function(content, callback) {
 };
 
 exports.contentDelete = function(content, callback) {
-	var db = app.database('cms');	
-	db.delete('content', content, function(err, isDeleted) {
-		exports.contentRefresh(true, function() {
-			callback(isDeleted);
-		});
+	var db = app.database('cms');
+
+	db.findPK('content', content.Id, function(err, content) {
+
+		if (content.IdStatus !== 2 && content.IdStatus !== 3) {
+			db.delete('content', content, function(err, isDeleted) {
+				exports.contentRefresh(true, function() {
+					callback(isDeleted);
+				});
+			});
+			return;
+		}
+
+		callback(false);
 	});
 };
 
@@ -629,11 +349,297 @@ exports.content = function(path, keys, names, callback) {
 function refresh(next) {
 	if (database.length === 0) {
 		database = [];
-		app.database('cms').reader('SELECT a.Id, b.Key As Category, a.Name, a.Key, a.Link, a.Priority, a.Body, a.Keywords, a.Description FROM content a LEFT JOIN category b ON b.Id=a.IdCategory WHERE a.IdStatus<3', null, function(err, rows) {
+		app.database('cms').reader('SELECT a.Id, b.Key As Category, a.Name, a.Key, a.Link, a.Priority, a.Body, a.Keywords, a.Description FROM content a LEFT JOIN category b ON b.Id=a.IdCategory', null, function(err, rows) {
 			database = rows;
 			next();
 		});
 		return;
 	}
 	next();
+}
+
+
+function viewLogin(self) {
+	self.layout('');
+	self.view('/administrator/login');
+};
+
+function viewIndex() {
+	var self = this;
+
+	if (self.session === null)
+		return viewLogin(self);
+
+	//self.layout('/administrator/_layout');
+	self.redirect('/administrator/contents/');
+}
+
+function authorization() {
+	
+	var self = this;
+
+	if (!(self.post.Email || '').isEmail())
+		return self.json({ r: false });
+
+	var user = users[self.post.Email];
+
+	if (typeof(user) === 'undefined')
+		return self.json({ r: false });
+
+	var obj = {
+		ip: self.req.ip,
+		id: self.post.Email,
+		expire: new Date().add('day', 1).getTime()
+	};
+
+	var hash = self.app.encode(obj, 'administrator');
+	var params = { url: self.req.hostname('/administrator/authorization/?hash=' + hash),
+			       now: new Date().format('dd.MM.yyyy HH:mm:ss') };
+
+	mail.send(self.config['administrator-mail-smtp'], self.config['administrator-mail-sender'], obj.id, null, 'Administrator', self.resource('cms', 'mail').params(params));
+	return self.json({ r: true });
+};
+
+function authorizationHash() {
+
+	var self = this;
+	var hash = self.get.hash;
+	var administrator = self.app.decode(hash, 'administrator', true);
+
+	if (typeof(administrator) === 'object') {
+		if (administrator.ip === self.req.ip || administrator.expire > new Date().getTime()) {
+			self.res.cookie(cookieName, hash, new Date().add('day', 1));
+			exports.onRequest.call(self, hash);
+		}
+	}
+
+	self.redirect('/administrator/');
+};
+
+function logoff() {
+	var self = this;
+	self.res.cookie(cookieName, '', new Date().add('day', -1));
+	self.redirect('/administrator/');
+};
+
+function viewContents() {
+	var self = this;
+	var db = self.database('cms');
+	db.all('category', function(err, rows) {
+		rows = rows.remove(function(o) {
+			return self.session.roles.indexOf(o.Key) !== -1;
+		});
+		self.view('/administrator/index', rows);
+	});
+};
+
+function jsonContents() {
+	var self = this;
+	var db = self.database('cms');
+	var query = new builders.QueryBuilder();
+
+	if (self.post.category > 0)
+		query.addValue('IdCategory', '=', self.post.category, true);
+
+	if (self.post.category > -1) {
+		db.reader('SELECT Id, IdStatus, Name, Note, DateCreated FROM content' + query.toString(true) + ' ORDER BY DateCreated DESC', function(err, rows) {
+			self.json(rows);
+		});
+		return;
+	}
+
+	db.reader('SELECT Id, Name, Size, Dimension, DateCreated FROM file ORDER BY DateCreated DESC', function(err, rows) {
+		self.json(rows);
+	});
+};
+
+function viewContentsForm(id) {
+	var self = this;
+	var db = self.database('cms');
+	
+	var model = {		
+		IdStatus: 0,
+		IdCategory: 0,
+		Priority: 0,
+		Name: '',
+		Description: '',
+		Link: '',
+		Body: '',
+		Custom: '',
+		Note: ''
+	};
+
+	id = id.parseInt();
+
+	self.wait(function() {
+		db.all('category', function(err, rows) {
+
+			rows = rows.remove(function(o) {
+				return self.session.roles.indexOf(o.Key) !== -1;
+			});
+
+			self.repository.category = rows;
+
+			if (id === 0)
+				self.skip();
+			else
+				self.next();
+
+		});
+	});
+
+	self.wait(function() {
+		db.findPK('content', id, function(err, row) {
+			if (row === null)
+				self.view404();
+			else {
+				model = row;
+				self.view('/administrator/form', model);
+			}
+		});
+	});
+
+	self.viewAsync('/administrator/form', model);
+};
+
+function jsonContentsForm(id) {
+	var self = this;
+
+	var db = self.database('cms');
+	var cms = self.module('cms');
+
+	id = id.parseInt();
+
+	if (self.get.deleted === '1') {
+
+		if (self.post.isFile === 'true') {
+	
+			db.execute('DELETE FROM file WHERE Id=' + id, function(err, data) {
+				self.json({ r: data.changes > 0 });
+			});
+
+			return;
+		}
+
+		cms.contentDelete({ Id: id }, function(isDeleted) {
+			self.json({ r: isDeleted });
+		});
+
+		return;
+	}
+
+	var error = self.validation(self.post, ['Name', 'Body'], 'form-', 'cms');
+	if (error.hasError())
+		return self.json(error);
+
+	var model = utils.extend({ Id: id, IdStatus: 1 }, self.post);
+
+	self.wait(function() {
+
+		if (id === 0) {
+			self.next();
+			return;
+		}
+
+		db.findPK('content', id, function(err, row) {
+			model = utils.extend(row, model);
+
+			if (row.IdStatus === 3) {
+				self.skip();
+				return;
+			}
+
+			if (row.IdStatus === 2) {
+				model.IdCategory = row.IdCategory;
+				model.Priority = row.Priority;
+				model.Key = row.Key;
+				model.Link = row.Link;
+				model.IdStatus = 2;
+			}
+
+			self.next();
+		});
+	});
+
+	self.wait(function() {
+
+		var cb = function(err, data) {
+			self.next();
+		};
+		
+		if (id === 0)
+			cms.contentInsert(model, cb);
+		else
+			cms.contentUpdate(model, cb);
+
+	});
+
+	self.jsonAsync({ r: true });
+}
+
+function uploadFile() {
+
+	var self = this;
+	var output = [];
+	var db = self.database('cms');
+
+	self.files.forEach(function(file) {
+
+		var fn = function(file) {
+			self.wait(function() {
+
+				var model = { Name: file.fileName,
+							  Size: file.fileSize,
+							  DateCreated: new Date(),
+							  ContentType: file.contentType,
+							  Dimension: ''
+							};
+
+				// read binary data to memory
+				model.Data = file.readSync();				
+				var extension = path.extname(file.fileName);
+
+				if (file.isImage()) {
+
+					file.picture().identify(function(err, data) {
+						var cb = function(err, row) {
+
+							if (err)
+								return self.next();
+
+							output.push('![' + path.basename(file.fileName, extension) + '](/upload/' + row.Id + extension + (data !== null ? '#' + data.width + 'x' + data.height : '') + ')');
+							self.next();
+						};
+
+						if (data !== null) {
+							model.Dimension = data.width + 'x' + data.height;
+							db.insert('file', model, cb);
+							return;
+						}
+
+						db.insert('file', model, cb);
+					});
+
+					return;
+				}
+
+				var cb = function(err, row) {
+
+					if (err)
+						return self.next();
+
+					output.push('[' + path.basename(file.fileName, extension) + ']: /upload/' + row.Id + path.extname(file.fileName));
+					self.next();
+				};
+
+				db.insert('file', model, cb);
+			});
+		}
+
+		fn(file);
+	});
+
+	self.complete(function() {
+		self.json(output);
+	});
 }

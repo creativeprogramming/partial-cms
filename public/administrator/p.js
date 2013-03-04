@@ -1,6 +1,9 @@
 $(document).ready(function() {
 
 	if (helper.url() === '/administrator/contents/') {
+
+		var id = parseInt(localStorage.getItem('category') || '0');
+		helper.setValue('#category', id);
 		refreshContents();
 
 		$('#category').bind('change', function() {
@@ -15,11 +18,27 @@ $(document).ready(function() {
 	if (typeof(onReady) !== 'undefined')
 		onReady();
 
+    $(window).resize(function () {
+        windows.resize();
+    });
+
+    windows.on("visible", function (el, visible) {
+        helper.opacity(visible);
+    });
+
+    $(window).bind("keydown", function (e) {
+        if (e.keyCode == 27)
+            windows.hide();
+    });
+
+    windows.refresh();
+    windows.resize();
 });
 
 function refreshContents() {
 
 	var id = helper.getValue('#category', true);
+	localStorage.setItem('category', id);
 	
 	busy.post('content', { category: id }, function(rows){
 		
@@ -40,12 +59,22 @@ function refreshContents() {
 					data = '[' + row.Name + '](/upload/' + row.Id + extension + ')';
 			}
 
-			el.append('<tr itemprop="{2}"{5}><td><div class="w500 limit">{0}</div></td><td class="silver"><div class="w200 limit">{3}</div></td><td class="silver">{1}</td><td><button{4}>remove</button></td></tr>'.format(row.Name, new Date(Date.parse(row.DateCreated)).format('dd.MM.yyyy / HH:mm'), row.Id, (id === -1 ? (row.Dimension ? row.Dimension + ' / ' : '') + (row.Size / 1024).floor(2) + ' kB' : row.Note) || '', row.IdStatus !== 2 ? ' name="remove"' : ' class="frozen"', id === -1 ? 'data-content="' + data + '"' : ''));
+			el.append('<tr itemprop="{2}"{5}><td><div class="w500 limit">{0}</div></td><td class="silver"><div class="w200 limit">{3}</div></td><td class="silver">{1}</td><td><button{4}>remove</button></td></tr>'.format(row.Name, new Date(Date.parse(row.DateCreated)).format('dd.MM.yyyy / HH:mm'), row.Id, (id === -1 ? (row.Dimension ? row.Dimension + ' / ' : '') + (row.Size / 1024).floor(2) + ' kB' : row.Note) || '', row.IdStatus !== 2 && row.IdStatus !== 3 ? ' name="remove"' : ' class="frozen"', id === -1 ? 'data-content="' + data + '"' : ''));
 		});
 	
 		el.find('tr').bind('click', function() {
 			var id = helper.getProp(this);
-			window.location.href = '/administrator/contents/' + id + '/';
+			var category = helper.getValue('#category', true);
+	
+			if (category !== -1)
+				window.location.href = '/administrator/contents/' + id + '/';
+			else {
+				var el = $('#linktofile').val($(this).attr('data-content'));
+				windows.show('#window-file');
+				setTimeout(function() {
+					el.focus().get(0).select();
+				}, 200);
+			}
 		});
 
 		el.find('button').bind('click', function(e) {

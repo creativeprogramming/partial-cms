@@ -1,16 +1,6 @@
 var builders = require('partial.js/builders');
 var utils = require('partial.js/utils');
 
-exports.onLoaded = function(framework) {	
-	var cms = framework.module('cms');
-	
-	cms.onRender = function(item) {
-		if (item.category === 'menu')
-			return;
-		return item;
-	};
-};
-
 exports.onExit = function(framework) {
 	framework.database('database').close();
 };
@@ -27,8 +17,22 @@ exports.onValidation = function(name, value) {
 	}
 };
 
-exports.onError = function(err, name, uri) {
-	var self = this;
-	console.log(err, name, uri);
-	self.log(err, name, uri);
+exports.onLoaded = function(framework) {
+	
+	var cms = framework.module('cms');
+	var db = framework.database('cms');
+
+	db.schemaCreate('category', function(isCreated) {
+		if (!isCreated)
+			return;
+		db.insert('category', { Id: 1, Name: 'Article', Key: 'article' });
+		db.insert('category', { Id: 2, Name: 'Menu', Key: 'menu' });
+		db.insert('category', { Id: 100, Name: 'Help', Key: 'help' });
+	});
+
+	cms.onRender = function(item) {
+		if (item.category === 'menu')
+			return;
+		return item;
+	};
 };

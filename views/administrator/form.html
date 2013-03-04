@@ -1,5 +1,5 @@
 @{model.body}
-<form action="#xhr" name="f" id="f" method="post">
+<form action="#xhr" name="f" id="f" method="post" itemprop="@{model.IdStatus}">
 
 	<div class="content">
 		<div class="p15 bg-smoke radius-top">
@@ -7,12 +7,12 @@
 			<div id="title" itemprop="NAMELESS"></div>
 		</div>
 		<div class="p15">
-			<textarea class="form-content" name="Body" id="Body" required="required">@{model.Body}</textarea>
+			<textarea class="form-content" name="Body" id="Body" placeholder="Enter content body ..." required="required">@{model.Body}</textarea>
 		</div>
 	</div>
 	<br />
-	<div class="content">
-		<div class="p20 npb	">
+	<div class="content bg-smoke">
+		<div class="p20 npb">
 			<div class="fs11 silver b mb15">CONTENT OPTIONS</div>
 			
 			<div class="fl w500">
@@ -24,7 +24,7 @@
 				<div class="form">
 					<div class="w90">Link</div>
 					<span>:</span>
-					<div><input type="text" class="w350" name="Link" id="Link" value="@{model.Link}"@{isDisabled(model.IdStatus === 2)} maxlength="150" /></div>
+					<div><input type="text" class="w350" name="Link" id="Link" value="@{model.Link}" maxlength="150" /></div>
 				</div>
 				<div class="form">
 					<div class="w90">Keywords</div>
@@ -44,23 +44,33 @@
 					<div class="w80">Category <span class="required">*</span></div>
 					<span>:</span>
 					<div>
-						<select class="w310" name="IdCategory" id="IdCategory"@{isDisabled(model.IdStatus === 2)}>
+						<select class="w310" name="IdCategory" id="IdCategory">
 							<option value="0">&nbsp;</option>
 							@{options(repository.category, model.IdCategory, 'Name', 'Id')}
 						</select>
 					</div>
 				</div>
 				<div class="form">
+					<div class="w80">Status</div>
+					<span>:</span>
+					<div>
+						<select class="w310" name="IdStatus" id="IdStatus">
+							<option value="1">&nbsp;</option>
+							<option value="2"@{selected(model.IdStatus === 2)}>frozen</option>
+							<option value="3"@{selected(model.IdStatus === 3)}>read only</option>
+						</select>
+					</div>
+				</div>				
+				<div class="form">
 					<div class="w80">Priority </div>
 					<span>:</span>
 					<div>
-						<select class="w80" name="Priority" id="Priority" itemprop="@{model.Priority}"@{isDisabled(model.IdStatus === 2)}>
+						<select class="w80" name="Priority" id="Priority" itemprop="@{model.Priority}">
 							<option value="0">&nbsp;</option>
 						</select>
 					</div>
 				</div>
-				<br /><br />
-				<div class="form mt3">
+				<div class="form">
 					<div class="w80">Note</div>
 					<span>:</span>
 					<div><input type="text" class="w300" name="Note" id="Note" value="@{model.Note}" maxlength="200" /></div>
@@ -68,20 +78,18 @@
 				<div class="form">
 					<div class="w80">Key</div>
 					<span>:</span>
-					<div><input type="text" class="w300" name="Key" id="Key" value="@{model.Key}"@{isDisabled(model.IdStatus === 2)} maxlength="50" /></div>
+					<div><input type="text" class="w300" name="Key" id="Key" value="@{model.Key}" maxlength="50" /></div>
 				</div>
-			</div>
-
+			</div>		
 			<div class="cl">&nbsp;</div>
-			<div class="bt">&nbsp;</div>
 			<div class="fl w90">&nbsp;</div>
 			<div class="fl ml5">
 				<div class="message-alert hidden w800 mb20" id="error">
 					<button class="close" name="hide">&times;</button>
 				</div>
 				<div>
-					<button class="button w150" name="submit">Save content</button>
-					<button class="button-cancel w100 ml10" name="cancel">Cancel</button>
+					<button class="button w150 mr10" name="submit">Save content</button>
+					<button class="button-cancel w100" name="cancel">Cancel</button>
 				</div>
 			</div>
 			<div class="cl mb5">&nbsp;</div>
@@ -92,6 +100,29 @@
 <script type="text/javascript">
 
 	function onReady() {
+
+		var el = $('#f');
+		var status = parseInt($('#f').attr('itemprop'));
+
+		if (status === 3) {
+			el.find('input,textarea').prop('readonly', true);
+			el.find('select').prop('disabled', true);
+			$('button[name="submit"]').hide();
+		} else if (status === 2) {
+			
+			helper.setValues(el, function() {
+				switch (this.name) {
+					case 'Priority':
+					case 'IdCategory':
+					case 'IdStatus':
+					case 'Link':
+					case 'Key':
+						this.disabled = true;
+				}
+			});
+
+		}
+
 		$('button').bind('click', function(e) {
 			e.preventDefault();
 			switch (this.name) {
@@ -181,7 +212,7 @@
 		upload.on('complete', function(value) {
 			var el = $('#Body');
 			JSON.parse(value).forEach(function(file) {
-				textareaInsert(el, ' ' + file);
+				textareaInsert(el, file);
 			});
 		});
 
