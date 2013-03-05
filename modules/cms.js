@@ -540,7 +540,8 @@ function jsonContentsForm(id) {
 		}
 
 		db.findPK('content', id, function(err, row) {
-			model = utils.extend(row, model);
+			
+			model = utils.extend(model, row);
 
 			if (row.IdStatus === 3) {
 				self.skip();
