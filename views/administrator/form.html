@@ -46,7 +46,12 @@
 					<div>
 						<select class="w310" name="IdCategory" id="IdCategory">
 							<option value="0">&nbsp;</option>
-							@{options(repository.category, model.IdCategory, 'Name', 'Id')}
+							<optgroup label="Category">
+								@{options(repository.category, model.IdCategory, 'Name', 'Id')}
+							</optgroup>
+							<optgroup label="Other">
+								<option value="-1"@{selected(model.IdCategory === -1)}>Help</option>
+							</optgroup>
 						</select>
 					</div>
 				</div>
@@ -120,7 +125,6 @@
 						this.disabled = true;
 				}
 			});
-
 		}
 
 		$('button').bind('click', function(e) {
@@ -152,7 +156,7 @@
 			el.text(this.value.length === 0 ? el.attr('itemprop') : this.value);
 		}).trigger('keyup');
 
-		$('#f').find('input,textarea,select').bind('blur', function() {
+		$('#f').find('input,select').bind('blur', function() {
 			helper.onValidation.call(this, this.name, this.value);
 		});
 
@@ -180,6 +184,17 @@
 				o.selected = value === i;
 			});
 		}
+
+		$('#Body').keydown(function(e) {
+		    if(e.keyCode === 9) {
+		        var start = this.selectionStart;
+				var end = this.selectionEnd;
+		        var $this = $(this);
+		        $this.val($this.val().substring(0, start) + '\t' + $this.val().substring(end));
+		        this.selectionStart = this.selectionEnd = start + 1;
+		        return false;
+		    }
+		});		
 	}
 
 	function dragEnter(evt) {
@@ -218,6 +233,4 @@
 
 		upload.submit('/administrator/upload/', files);
 	}
-
-
 </script>

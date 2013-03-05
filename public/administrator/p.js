@@ -50,7 +50,7 @@ function refreshContents() {
 			row.Name = (row.Name || '').htmlEncode();
 			row.Note = (row.Note || '').htmlEncode();
 
-			if (id === -1) {
+			if (id === -2) {
 				var index = row.Name.lastIndexOf('.');
 				var extension = row.Name.substring(index);				
 				if (row.Dimension !== '')
@@ -59,14 +59,14 @@ function refreshContents() {
 					data = '[' + row.Name + '](/upload/' + row.Id + extension + ')';
 			}
 
-			el.append('<tr itemprop="{2}"{5}><td><div class="w500 limit">{0}</div></td><td class="silver"><div class="w200 limit">{3}</div></td><td class="silver">{1}</td><td><button{4}>remove</button></td></tr>'.format(row.Name, new Date(Date.parse(row.DateCreated)).format('dd.MM.yyyy / HH:mm'), row.Id, (id === -1 ? (row.Dimension ? row.Dimension + ' / ' : '') + (row.Size / 1024).floor(2) + ' kB' : row.Note) || '', row.IdStatus !== 2 && row.IdStatus !== 3 ? ' name="remove"' : ' class="frozen"', id === -1 ? 'data-content="' + data + '"' : ''));
+			el.append('<tr itemprop="{2}"{5}><td><div class="w500 limit">{0}</div></td><td class="silver"><div class="w200 limit">{3}</div></td><td class="silver">{1}</td><td><button{4}>remove</button></td></tr>'.format(row.Name, new Date(Date.parse(row.DateCreated)).format('dd.MM.yyyy / HH:mm'), row.Id, (id === -2 ? (row.Dimension ? row.Dimension + ' / ' : '') + (row.Size / 1024).floor(2) + ' kB' : row.Note) || '', row.IdStatus !== 2 && row.IdStatus !== 3 ? ' name="remove"' : ' class="frozen"', id === -2 ? 'data-content="' + data + '"' : ''));
 		});
 	
 		el.find('tr').bind('click', function() {
 			var id = helper.getProp(this);
 			var category = helper.getValue('#category', true);
 	
-			if (category !== -1)
+			if (category !== -2)
 				window.location.href = '/administrator/contents/' + id + '/';
 			else {
 				var el = $('#linktofile').val($(this).attr('data-content'));
@@ -83,6 +83,9 @@ function refreshContents() {
 			e.stopPropagation();
 			
 			if (this.name !== 'remove')
+				return;
+
+			if (!confirm('Are you sure you want to delete selected item?'))
 				return;
 
 			var el = $(this).parent().parent();

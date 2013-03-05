@@ -13,6 +13,44 @@ exports.install = function(framework) {
 	
 	app = framework;
 
+	builders.schema('status', {
+		Id: 'integer',
+		Name: 'text(50)'
+	}, 'Id', true);
+
+	builders.schema('category', {
+		Id: 'integer',
+		Key: 'text(50)',
+		Name: 'text(50)',
+		Count: 'integer'
+	}, 'Id', true);
+
+	builders.schema('content', {
+		Id: 'integer',
+		IdStatus: 'integer',
+		IdCategory: 'integer',
+		Key: 'text(50)',
+		Name: 'text(80)',
+		Link: 'text(150)',
+		Description: 'text(300)',
+		Body: 'text',
+		Keywords: 'text(80)',
+		Note: 'text(200)',
+		Priority: 'integer',
+		DateCreated: 'datetime'
+	});
+
+	builders.schema('file', {
+		Id: 'integer',
+		Name: 'text(130)',
+		Size: 'integer',
+		ContentType: 'text(50)',
+		Dimension: 'text(12)',
+		Data: 'blob',
+		DateCreated: 'datetime'
+	});	
+
+	// load users
 	app.config['administrator-users'].split(',').forEach(function(user) {
 		var data = user.split(';');
 		var name = data.shift();
@@ -29,11 +67,25 @@ exports.install = function(framework) {
 	app.route('/administrator/contents/{id}/', viewContentsForm);
 	app.route('/administrator/contents/{id}/', jsonContentsForm, ['xhr']);
 
+	var db = app.database('cms');
 	var resource = {
 		'mail': '<!DOCTYPE html><html><head><title>Administrator</title><meta charset="utf-8" /><meta name="format-detection" content="telephone=no"/><meta name="viewport" content="width=1100, user-scalable=yes" /><meta name="author" content="Web Site Design s.r.o." /></head><body style="padding:15px;font:normal 12px Arial;color:gray;background-color:white;"><br /><div style="width:700px;margin:0 auto;"><div style="font-size:14px;font-weight:bold;color:silver">Manager 1.01</div><div style="font-size:11px;color:silver;margin-bottom:10px">{now}</div><div style="line-height:15px;font-size:11px;background-color:white;padding:15px;background-color:#F0F0F0;-moz-border-radius:5px;-wekbit-border-radius:5px;border-radius:5px;border:1px solid #E0E0E0"><div style="font-weight:bold;color:black">Authorization:</div><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{url}</div></div></div></body></html>'
 	};
 	
 	app.createResource('cms', resource);
+
+	db.createSchema('status', function(b) {
+		db.createSchema('content', function(b) {
+			
+			if (!b)
+				return;
+
+			db.insert('status', { Id: 1, Name: 'Active' });
+			db.insert('status', { Id: 2, Name: 'Frozen' });
+			db.insert('status', { Id: 3, Name: 'Disabled' });
+			db.createSchema('file');
+		});	
+	});
 
 	app.on('controller', function(controller, name) {
 
@@ -107,58 +159,6 @@ exports.install = function(framework) {
 		controller.req.session = controller.session = administrator;
 		controller.layout('/administrator/_layout');
 	});
-
-	builders.schema('status', {
-		Id: 'integer',
-		Name: 'text(50)'
-	}, 'Id', true);
-
-	builders.schema('category', {
-		Id: 'integer',
-		Key: 'text(50)',
-		Name: 'text(50)',
-		Count: 'integer'
-	}, 'Id', true);
-
-	builders.schema('content', {
-		Id: 'integer',
-		IdStatus: 'integer',
-		IdCategory: 'integer',
-		Key: 'text(50)',
-		Name: 'text(80)',
-		Link: 'text(150)',
-		Description: 'text(300)',
-		Body: 'text',
-		Keywords: 'text(80)',
-		Note: 'text(200)',
-		Priority: 'integer',
-		DateCreated: 'datetime'
-	});
-
-	builders.schema('file', {
-		Id: 'integer',
-		Name: 'text(130)',
-		Size: 'integer',
-		ContentType: 'text(50)',
-		Dimension: 'text(12)',
-		Data: 'blob',
-		DateCreated: 'datetime'
-	});
-
-	var db = app.database('cms');
-	
-	db.schemaCreate('status', function(b) {
-		db.schemaCreate('content', function(b) {
-			
-			if (!b)
-				return;
-
-			db.insert('status', { Id: 1, Name: 'Active' });
-			db.insert('status', { Id: 2, Name: 'Frozen' });
-			db.insert('status', { Id: 3, Name: 'Disabled' });
-			db.schemaCreate('file');
-		});	
-	});
 };
 
 exports.onRequest = function(cookieValue) {
@@ -211,33 +211,33 @@ exports.onRender = function(item) {
 	return item;
 };
 
-exports.contentInsert = function(content, callback) {
+exports.insert = function(content, callback) {
 	content.DateCreated = new Date();
 	var db = app.database('cms');
 	db.insert('content', content, function(err, row) {
-		exports.contentRefresh(true, function() {
+		exports.refresh(true, function() {
 			callback(row);
 		});
 	});
 };
 
-exports.contentUpdate = function(content, callback) {
+exports.update = function(content, callback) {
 	var db = app.database('cms');
 	db.update('content', content, function(err, row) {
-		exports.contentRefresh(false, function() {
+		exports.refresh(false, function() {
 			callback(row);
 		});
 	}, ['DateCreated']);
 };
 
-exports.contentDelete = function(content, callback) {
+exports.delete = function(content, callback) {
 	var db = app.database('cms');
 
 	db.findPK('content', content.Id, function(err, content) {
 
 		if (content.IdStatus !== 2 && content.IdStatus !== 3) {
 			db.delete('content', content, function(err, isDeleted) {
-				exports.contentRefresh(true, function() {
+				exports.refresh(true, function() {
 					callback(isDeleted);
 				});
 			});
@@ -248,7 +248,7 @@ exports.contentDelete = function(content, callback) {
 	});
 };
 
-exports.contentRefresh = function(sumarize, callback) {
+exports.refresh = function(sumarize, callback) {
 	var db = app.database('cms');
 
 	database = [];
@@ -438,10 +438,10 @@ function jsonContents() {
 	var db = self.database('cms');
 	var query = new builders.QueryBuilder();
 
-	if (self.post.category > 0)
+	if (self.post.category > 0 || self.post.category === -1)
 		query.addValue('IdCategory', '=', self.post.category, true);
 
-	if (self.post.category > -1) {
+	if (self.post.category > -2) {
 		db.reader('SELECT Id, IdStatus, Name, Note, DateCreated FROM content' + query.toString(true) + ' ORDER BY DateCreated DESC', function(err, rows) {
 			self.json(rows);
 		});
@@ -506,8 +506,6 @@ function jsonContentsForm(id) {
 	var self = this;
 
 	var db = self.database('cms');
-	var cms = self.module('cms');
-
 	id = id.parseInt();
 
 	if (self.get.deleted === '1') {
@@ -521,7 +519,7 @@ function jsonContentsForm(id) {
 			return;
 		}
 
-		cms.contentDelete({ Id: id }, function(isDeleted) {
+		exports.delete({ Id: id }, function(isDeleted) {
 			self.json({ r: isDeleted });
 		});
 
@@ -568,9 +566,9 @@ function jsonContentsForm(id) {
 		};
 		
 		if (id === 0)
-			cms.contentInsert(model, cb);
+			exports.insert(model, cb);
 		else
-			cms.contentUpdate(model, cb);
+			exports.update(model, cb);
 
 	});
 
