@@ -268,6 +268,7 @@ exports.delete = function(content, callback) {
 exports.refresh = function(sumarize, callback) {
 	var db = app.database('cms');
 
+	app.cache.removeAll('cms.');
 	database = [];
 	
 	if (sumarize) {
@@ -278,7 +279,18 @@ exports.refresh = function(sumarize, callback) {
 	callback();
 };
 
-exports.content = function(controller, keys, callback) {
+exports.content = function(controller, keys, callback, duration) {
+
+	var path = typeof(controller) === 'string' ? controller : controller.url;
+	var cacheKey = 'cms.' + path;
+
+	if (typeof(duration) !== 'undefined' && typeof(controller) === 'object') {
+		var model = controller.cache.read(cacheKey);
+		if (model !== null) {
+			controller.repository.cms = model;
+			return callback(model);
+		}
+	}
 
 	if (typeof(keys) === 'function') {
 		callback = keys;
@@ -291,8 +303,6 @@ exports.content = function(controller, keys, callback) {
 	var render = function(item) {
 		return exports.onRender({ name: item.Name, body: item.Body, description: item.Description, keywords: item.Keywords, key: item.Key, category: item.Category });
 	};
-
-	var path = typeof(controller) === 'string' ? controller : controller.url;
 
 	var next = function() {
 		var model = {}
@@ -350,8 +360,12 @@ exports.content = function(controller, keys, callback) {
 			});
 		});
 
-		if (typeof(controller) === 'object')
+		if (typeof(controller) === 'object') {
 			controller.repository.cms = model;
+
+			if (typeof(duration) !== 'undefined')
+				controller.cache.write(cacheKey, model, new Date().add('minute', duration));
+		}
 
 		callback(model);
 	};
@@ -360,6 +374,7 @@ exports.content = function(controller, keys, callback) {
 };
 
 function refresh(next) {
+
 	if (database.length === 0) {
 		database = [];
 		app.database('cms').reader('SELECT a.Id, b.Key As Category, a.Name, a.Key, a.Link, a.Priority, a.Body, a.Keywords, a.Description FROM content a LEFT JOIN category b ON b.Id=a.IdCategory', null, function(err, rows) {
@@ -409,7 +424,7 @@ function authorization() {
 	var params = { url: self.req.hostname('/administrator/authorization/?hash=' + hash),
 			       now: new Date().format('dd.MM.yyyy HH:mm:ss') };
 
-	mail.send(self.config['administrator-mail-smtp'], self.config['administrator-mail-sender'], obj.id, null, 'Administrator', self.resource('cms', 'mail').params(params));
+	mail.send(self.config['administrator-mail-smtp'], self.config['administrator-mail-sender'], obj.id, null, 'Administrator: ' + self.config.name, self.resource('cms', 'mail').params(params), self.config.name);
 	return self.json({ r: true });
 };
 

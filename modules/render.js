@@ -28,36 +28,14 @@ exports.render = function(item) {
 	};
 
 	md.onLink = function(name, url) {
-
-		if (this.name === 'referencie')
-			return name + '#' + url;
-
 		return '<a href="{0}">{1}</a>'.format(url, name);
 	};
 
 	md.onLines = function(type, value) {
-		if (type === 'javascript')
-			return '<script type="text/javascript">' + value.join('\n') + '</script>';
-
-		if (type === 'html')
-			return value;
-
-		if (type !== '>')
-			return value.join('<br />');
-
-		var builder = [];
-		
-		var index = value[1].indexOf('#');
-		var name = value[1].substring(0, index);
-		var url = value[1].substring(index + 1);
-
-		return '<a href="{0}" class="app"><img src="{2}" width="65" height="65" alt="{1}" border="0" /><strong>{1}</strong><span>{3}</span></a>'.format(url, name, value[0], value[2]);
+		return value.join('<br />');
 	};
 
 	md.onLine = function(type, value) {
-
-		if (this.name === 'referencie')
-			return '';
 
 		switch (type) {
 			case '\n':
@@ -83,7 +61,7 @@ exports.render = function(item) {
 			builder += '<li>' + o.value + '</li>';
 		});
 
-		return '<ul class="why">' + builder + '</ul>';
+		return '<ul>' + builder + '</ul>';
 	};
 
 	item.body = md.parse(item.body, item.key);
