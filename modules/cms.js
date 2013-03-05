@@ -55,6 +55,11 @@ exports.install = function(framework) {
 	app.config['administrator-users'].split(',').forEach(function(user) {
 		var data = user.split(';');
 		var name = data.shift();
+
+		data = data.remove(function(o) {
+			return o === '';
+		});
+
 		users[name] = data;
 	});
 	
@@ -377,7 +382,7 @@ function refresh(next) {
 
 	if (database.length === 0) {
 		database = [];
-		app.database('cms').reader('SELECT a.Id, b.Key As Category, a.Name, a.Key, a.Link, a.Priority, a.Body, a.Keywords, a.Description FROM content a LEFT JOIN category b ON b.Id=a.IdCategory', null, function(err, rows) {
+		app.database('cms').reader('SELECT a.Id, b.Key As Category, a.Name, a.Key, a.Link, a.Priority, a.Body, a.Keywords, a.Description FROM content a LEFT JOIN category b ON b.Id=a.IdCategory WHERE a.IdCategory > 0', null, function(err, rows) {
 			database = rows;
 			next();
 		});
@@ -454,9 +459,11 @@ function viewContents() {
 	var self = this;
 	var db = self.database('cms');
 	db.all('category', function(err, rows) {
-		rows = rows.remove(function(o) {
-			return self.session.roles.indexOf(o.Key) !== -1;
-		});
+		if (self.session.roles.length > 0) {
+			rows = rows.remove(function(o) {
+				return self.session.roles.indexOf(o.Id.toString()) === -1;
+			});
+		}
 		self.view('/administrator/index', rows);
 	});
 };
@@ -465,11 +472,15 @@ function jsonContents() {
 	var self = this;
 	var db = self.database('cms');
 	var query = new builders.QueryBuilder();
+	var category = parseInt(self.post.category) || 0;
 
-	if (self.post.category > 0 || self.post.category === -1)
-		query.addValue('IdCategory', '=', self.post.category, true);
+	if (self.session.roles.length > 0)
+		query.addValue('IdCategory', 'IN', '(' + self.session.roles.join(',') + ')');
 
-	if (self.post.category > -2) {
+	if (category > 0 || category === -1)
+		query.addOperator('AND').addValue('IdCategory', '=', category, true);
+
+	if (category > -2) {
 		db.reader('SELECT Id, IdStatus, Name, Note, DateCreated FROM content' + query.toString(true) + ' ORDER BY DateCreated DESC', function(err, rows) {
 			self.json(rows);
 		});
