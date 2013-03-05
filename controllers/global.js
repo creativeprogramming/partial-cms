@@ -44,7 +44,7 @@ function viewContent(a, b, c, d, e) {
     
     cms.content(self.url, [], [], function(model) {
         self.view('cms', model);
-    });
+    }, self);
 }
 
 function viewUsage() {

@@ -1,4 +1,4 @@
 mail                : <!DOCTYPE html><html><head><title>Administrator</title><meta charset="utf-8" /><meta name="format-detection" content="telephone=no"/><meta name="viewport" content="width=1100, user-scalable=yes" /><meta name="author" content="Web Site Design s.r.o." /></head><body style="padding:15px;font:normal 12px Arial;color:gray;background-color:white;"><br /><div style="width:700px;margin:0 auto;"><div style="font-size:14px;font-weight:bold;color:silver">Manager 1.01</div><div style="font-size:11px;color:silver;margin-bottom:10px">{now}</div><div style="line-height:15px;font-size:11px;background-color:white;padding:15px;background-color:#F0F0F0;-moz-border-radius:5px;-wekbit-border-radius:5px;border-radius:5px;border:1px solid #E0E0E0"><div style="font-weight:bold;color:black">Authorization:</div><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{url}</div></div></div></body></html>
-form-Name			: nebolo uvedené meno
-form-Body			: nebol uvedený obsah
-form-IdCategory		: nebola vybraná žiadna kategória
+form-Name			: name is required
+form-Body			: body is required
+form-IdCategory		: category is required

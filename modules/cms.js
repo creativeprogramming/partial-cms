@@ -1,6 +1,7 @@
 var builders = require('partial.js/builders');
 var utils = require('partial.js/utils');
 var path = require('path');
+var fs = require('fs');
 var mail = require('partial.js/mail');
 var app = null;
 var users = {};
@@ -67,11 +68,27 @@ exports.install = function(framework) {
 	app.route('/administrator/contents/{id}/', viewContentsForm);
 	app.route('/administrator/contents/{id}/', jsonContentsForm, ['xhr']);
 
+    app.routeFile('files', function(req) {
+        return req.url.indexOf('/upload/') !== -1;
+    }, serveFiles);
+
 	var db = app.database('cms');
 	var resource = {
 		'mail': '<!DOCTYPE html><html><head><title>Administrator</title><meta charset="utf-8" /><meta name="format-detection" content="telephone=no"/><meta name="viewport" content="width=1100, user-scalable=yes" /><meta name="author" content="Web Site Design s.r.o." /></head><body style="padding:15px;font:normal 12px Arial;color:gray;background-color:white;"><br /><div style="width:700px;margin:0 auto;"><div style="font-size:14px;font-weight:bold;color:silver">Manager 1.01</div><div style="font-size:11px;color:silver;margin-bottom:10px">{now}</div><div style="line-height:15px;font-size:11px;background-color:white;padding:15px;background-color:#F0F0F0;-moz-border-radius:5px;-wekbit-border-radius:5px;border-radius:5px;border:1px solid #E0E0E0"><div style="font-weight:bold;color:black">Authorization:</div><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{url}</div></div></div></body></html>'
 	};
 	
+	app.helpers.cms = function(category, key) {
+
+		var item = (this.repository.cms[category] || []).find(function(o) {
+			return o.key === key;
+		});
+
+		if (item === null)
+			return { body: '', name: '', description: '', keywords: '' };
+		
+		return item;
+	};
+
 	app.createResource('cms', resource);
 
 	db.createSchema('status', function(b) {
@@ -261,28 +278,21 @@ exports.refresh = function(sumarize, callback) {
 	callback();
 };
 
-exports.content = function(path, keys, names, callback) {
+exports.content = function(controller, keys, callback) {
 
 	if (typeof(keys) === 'function') {
 		callback = keys;
 		keys = null;
-		names = null;
-	}
-
-	if (typeof(names) === 'function') {
-		callback = names;
-		names = null;
 	}
 
 	if (keys === null)
 		keys = [];
 
-	if (names === null)
-		names = [];
-
 	var render = function(item) {
 		return exports.onRender({ name: item.Name, body: item.Body, description: item.Description, keywords: item.Keywords, key: item.Key, category: item.Category });
 	};
+
+	var path = typeof(controller) === 'string' ? controller : controller.url;
 
 	var next = function() {
 		var model = {}
@@ -298,7 +308,7 @@ exports.content = function(path, keys, names, callback) {
 				item = model[key];
 			}
 
-			if (keys.indexOf(content.Key) !== -1 || names.indexOf(content.Name) !== -1) {
+			if (keys.indexOf(content.Key) !== -1) {
 				var r = render(content);
 				r && item.push(r);
 				return;
@@ -339,6 +349,9 @@ exports.content = function(path, keys, names, callback) {
 				return 0;
 			});
 		});
+
+		if (typeof(controller) === 'object')
+			controller.repository.cms = model;
 
 		callback(model);
 	};
@@ -595,7 +608,7 @@ function uploadFile() {
 							};
 
 				// read binary data to memory
-				model.Data = file.readSync();				
+				model.Data = file.readSync();
 				var extension = path.extname(file.fileName);
 
 				if (file.isImage()) {
@@ -641,4 +654,49 @@ function uploadFile() {
 	self.complete(function() {
 		self.json(output);
 	});
+}
+
+// Serve files from database
+function serveFiles(req, res) {
+    
+    // this === framework
+    var self = this;
+
+    var id = utils.parseInt(req.uri.pathname.match(/\d+/).toString());
+    if (id === 0)
+        return self.return404(req, res);
+
+    var key = req.url.replace(/\/+/g, '-').substring(1);
+
+    var index = key.indexOf('?');
+    if (index > 0)
+    	key = key.substring(0, index);
+
+    var fileName = self.path(self.config.directoryTemp, key);
+
+    // framework.static contains all cached static file
+    var file = self.static[fileName];
+    if (file === null)
+        return self.response404(req, res);
+
+    if (file)
+        return self.responseFile(req, res, file);
+
+    // cache file to disk
+    var db = self.database('cms');
+
+    db.get('SELECT Data FROM file WHERE id=' + id, function(err, data) {
+
+        if (err || data === null) {
+            self.static[fileName] = null;
+            return self.response404(req, res);
+        }
+
+        // save file to temporary directory
+        self.static[fileName] = fileName;         
+        fs.writeFileSync(fileName, data.Data);
+
+        // return file
+        serveFiles.call(self, req, res);
+    });
 }
